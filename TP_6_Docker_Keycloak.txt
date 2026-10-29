@@ -1,0 +1,336 @@
+# Gestion d'une flotte d'ordinateurs
+
+Notre code est complet.
+
+L'entreprise souhaite :
+- faire un worflow sous github pour tester le projet
+- deployer l'ensemble sous docker
+
+# Objectifs pédagogiques
+
+À la fin de ce TP, vous serez capable de mettre en pratique :
+
+- Déployer sous docker
+- Créer des images docker
+- Utiliser l'OIDC via Keycloak
+
+
+## Démarrage
+Pensez aux commentaires dans vos codes.
+
+### Tout le travail s'effectuera dans la solution GestionOrdinateurs du dernier TP.
+
+
+
+## Partie 1 - Github Worflow et Docker (10pts)
+
+1. Créer un repository github (avec un .gitignore dotnet) et déposer votre solution complete GestionOrdinateurs
+Lié ce répo à votre dossier local
+`
+Ouvrir un terminal sur votre dossier
+
+git init
+git add .
+git commit -m "Initialisation du repo"
+
+git remote add origin https://github.com/votre-utilisateur/nom-du-depot.git
+
+git pull origin main --allow-unrelated-histories
+
+git branch -M main
+git push -u origin main
+
+2. Une fois votre dépot sous github online,
+Créer sur votre repo local ce fichier : .github/workflows/docker-image.yml
+Il permettra de lancer le workflow pour lancer les tests et publier sous docker-image
+`
+name: xxxxxxxxxx
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+env:
+  DOCKER_REGISTRY: ${{ secrets.DOCKER_ACCOUNT }}
+
+jobs:
+
+  tests:
+    runs-on: ubuntu-latest
+  
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+  
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+  
+      - name: Restore
+        run: dotnet restore
+  
+      - name: Build solution
+        run: dotnet build --no-restore
+  
+      - name: Run tests
+        run: dotnet test MonprojetTest.Tests/MonprojetTest.Tests.csproj --no-build --verbosity normal
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: tests
+    environment: dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Login Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+        
+      - name: Afficher l'arborescence
+        run: |
+         pwd
+         ls -la
+         find . -name Dockerfile
+    
+      #################################################
+      # AuthentificationApi
+      #################################################
+
+      - name: Build AuthentificationApi
+        run: docker build -t ${{ env.DOCKER_REGISTRY }}/authentificationapi:latest -f AuthentificationApi/Dockerfile .
+
+      - name: Push AuthentificationApi
+        run: docker push ${{ env.DOCKER_REGISTRY }}/authentificationapi:latest
+		
+	  # .... Les autres projets à pousser sous docker (à vous de reflechir sur ceux à poursser)
+	  
+`
+
+# Sachez qu'il y a une particularité pour le projet web blazor. (création du fichier nginx.conf par exemple ci-dessous)
+Faire tourner le front sur le  port 5000 (penser à modifier les CORS ORIGINE)
+`
+server {
+	listen 5000;
+	server_name localhost;
+
+	root /usr/share/nginx/html;
+	index index.html;
+
+	location / {
+		try_files $uri $uri/ /index.html;
+	}
+}
+`
+
+3. Ajoutez les fichiers Dockerfile pour les projets à pousser sous Docker.
+Suivre l'exemple suivant
+`
+# =========================
+# Build
+# =========================
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /app
+
+# Copy csproj and restore as distinct layers
+COPY ../AuthentificationApi/AuthentificationApi.csproj ./AuthentificationApi/
+COPY ../GestionOrdinateurs.Shared/GestionOrdinateurs.Shared.csproj ./GestionOrdinateurs.Shared/
+RUN dotnet restore ./AuthentificationApi
+RUN dotnet restore ./GestionOrdinateurs.Shared
+
+# Copy the remaining source code
+COPY ./AuthentificationApi/ ./AuthentificationApi/
+COPY ./GestionOrdinateurs.Shared/ ./GestionOrdinateurs.Shared/
+RUN dotnet publish ./AuthentificationApi -c Release -o out
+
+# Build runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+WORKDIR /app
+COPY --from=build /app/out ./
+
+# Set environment variables if needed (e.g., ASPNETCORE_ENVIRONMENT)
+ENV ASPNETCORE_ENVIRONMENT=Development
+
+# Expose port 5157
+EXPOSE 5157
+
+# Define the entry point
+ENTRYPOINT ["dotnet", "AuthentificationApi.dll"]
+`
+
+4. Faire un push sous github et vérifier/corriger le worflow
+`
+git add .
+git commit -m "modifications"
+git push -u origin main
+`
+
+5. Vérifier une fois le workflow reussi que les images sont bien dans votre "hub" docker
+
+NB : A chaque modification majeure faire un push vers github.
+
+
+6. A la racine de votre solution, créer le fichier docker-compose.yml
+`
+services:
+
+  postgres:
+    image: postgres:15
+    container_name: postgres_db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: GestionOrdinateursDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - appnet
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.1
+    container_name: keycloak
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8180
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      KC_HOSTNAME_STRICT_BACKCHANNEL: "false"
+      KC_HOSTNAME_STRICT_HTTPS: "false"
+    command: start-dev
+    ports:
+      - "8180:8080"
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - appnet
+
+  authentification-api:
+    image: ${DOCKER_ACCOUNT}/authentificationapi:latest
+    build:
+      context: .
+      dockerfile: AuthentificationApi/Dockerfile
+    container_name: authentification_api
+    ports:
+      - "5157:5157"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:5157
+    depends_on:
+      - postgres
+      - keycloak
+    networks:
+      - appnet
+
+.... le reste des projets
+`
+
+7. En local créer le fichier .env et y mettre la variable DOCKER_ACCOUNT=mon_compte_docker
+
+8. Builder les images et les lancer sous docker
+`
+docker compose build
+docker compose up -d
+`
+
+9. Une fois lancé sous docker, faites un test depuis votre front (normalement ça ne marchera pas)
+
+Remplacer les appels d'API (hors ceux fait depuis le front) "localhost" par les noms des services docker. Par exemple si votre gestionOrdinateurs.APi s'appellait en http://localhost:5127/... remplacer par 
+http://gestionordinateurs-api:5127/...
+
+10. Refaire un build et un up et tester sous docker
+
+11. Modifier votre workflow github pour qu'il utilise maintenant votre docker-compose.yml
+`
+name: CI/CD Docker ALTN71 2026
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+env:
+  DOCKER_ACCOUNT: ${{ secrets.DOCKER_ACCOUNT }}
+
+jobs:
+
+  tests:
+    runs-on: ubuntu-latest
+  
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+  
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+  
+      - name: Restore
+        run: dotnet restore
+  
+      - name: Build
+        run: dotnet build --no-restore
+  
+      - name: Tests
+        run: dotnet test --no-build
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: tests
+    environment: dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Login Docker Hub
+        run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Build images
+        env:
+          DOCKER_ACCOUNT: ${{ secrets.DOCKER_ACCOUNT }}
+        run: docker compose build
+
+      - name: Push images
+        env:
+          DOCKER_ACCOUNT: ${{ secrets.DOCKER_ACCOUNT }}
+        run: docker compose push
+` 
+
+A chaque modification faire un push vers github et tester
+
+12. Tester à nouveau (vos listes devraient être vide)
+
+Dans le csproj de votre projet GestionOrdinateursAPI ayant votre base de données sqllite ajoutez ceci : 
+
+<ItemGroup>
+  <Content Include="parcinfo.db">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </Content>
+</ItemGroup>
+
+Déployer à nouveau sous docker local et aussi via le workflow github.
+
+Tester en local (tout devrait fonctionner)
+
+
+## Partie 2 - Configuration de keycloack (10 pts)
+
+13. Configurer keycloak en vous basant du lien suivant : https://medium.com/@faulycoelho/net-web-api-with-keycloak-11e0286240b9 configurer Keycloack (qui tournera sous docker) et ce fichier en copie tuto_aide_config_Keycloak.pdf
+
+
+Dans le projet client, modifier la page de login (user et mot de passe) pour utiliser le service keycloak et gérer l'authentification
+Package utile.
+`
+dotnet add package Microsoft.AspNetCore.Components.WebAssembly.Authentication
+`
+
+En créant les services Pour keycloak, penser à duppliquer votre endpoint auth/login ou à commenter celui qui fonctionnait.

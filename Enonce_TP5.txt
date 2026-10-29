@@ -1,0 +1,273 @@
+# Gestion d'une flotte d'ordinateurs
+
+L'atelier de réparation et de vente d'ordinateurs a grandi.
+Le prix de base des ordinateurs en vente en base c'est l'euros.
+L'application de gestion de l'atelier informatique est maintenant utilisée par plusieurs profils : [Gestionnaire] ET [Administrateur];
+
+L'entreprise souhaite :
+- centraliser les appels API via une Gateway
+- sécuriser les API avec JWT
+- gérer les rôles et les droits
+- mémoriser l'utilisateur connecté
+- tracer les opérations effectuées
+- consommer une API publique externe
+
+# Objectifs pédagogiques
+
+À la fin de ce TP, vous serez capable de mettre en pratique :
+
+- Middleware
+- JWT, Authentification, Autorisation, Roles et Claims
+- HttpClientFactory
+- API Gateway (YARP)
+- Blazor
+- Session utilisateur
+- API distante
+
+Architecture finale des appels de flux attendue : 
+
+GestionOrdinateurs.Client (projet blazorapp)
+   |
+   v
+Gateway (YARP)
+   |
+   +------ AuthentificationApi
+   |
+   +------ GestionOrdinateursApi
+   |
+   +------ ...
+
+
+## Démarrage
+Pensez aux commentaires dans vos codes.
+
+### Tout le travail s'effectuera dans la solution GestionOrdinateurs du dernier TP.
+
+## Partie 1 - Création de l'API d'authentification (4pts)
+
+1. Créer un nouveau projet webapi, nommé AuthentificationApi et l'ajouter à la solution.
+   Créer un nouveau projet blazorapp nommé GestionOrdinateurs.Client et l'ajouter à la solution.
+   Créer un nouveau projet webapi nommé GestionOrdinateurs.Gateway et l'ajouter à la solution.
+   `
+       dotnet new webapi -n AuthentificationApi
+       dotnet new webapi -n GestionOrdinateurs.Gateway
+       dotnet new blazorwasm -n GestionOrdinateurs.Client
+   `
+
+2. Ajouter l'entité User, sachant que RoleEnum est un enum ayant (Gestionnaire et Admin)
+`
+public class User
+{
+    public int Id { get; set; } (clé primaire)
+
+    [Required]
+	public string Login { get; set; } = string.Empty;
+
+    public RoleEnum Role { get; set; }
+}
+
+Le Login doit être unique en base de données.
+`
+
+3. Créer un controleur UsersController, avec des endpoints "chercher utilisateur par login", "recuperer tous les utilisateurs" dans le projet GestionOrdinataurs.API.
+Initialiser la base de données avec quelques utilisateurs avec pour login (user1, user2, user3, ...).
+Cette initialisation doit se faire au lancement de l'API (donc dans program.cs)
+`
+//Initialisation de la base de données
+using(var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ParcInformatiqueContext>();
+    
+    db.Database.Migrate();
+
+    if(!db.Users.Any())
+    {
+        db.Users.AddRange(
+            new User { Login="user1", Role=RoleEnum.Admin },
+            new User { Login="user2", Role=RoleEnum.Gestionnaire },
+            new User { Login="user3", Role=RoleEnum.Gestionnaire }
+        );
+
+        db.SaveChanges();
+    }
+}
+`
+
+4. Mettre à jour la base de données. (dotnet ef migrations, update)
+
+
+## Partie 2 - Création du JWT et utilisation (5 pts)
+
+5. Dans le projet AuthentificationApi installer ces packages
+`
+dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer
+dotnet add package Microsoft.AspNetCore.Identity.EntityFrameworkCore
+dotnet add package Swashbuckle.AspNetCore
+`
+
+5b. Créer le controleur AuthenticationController dans le projet AuthentificationApi et ajouter l'endpoint POST 
+qui permettra de prendre en paramètre le role et le login de l'utilisateur et renvoi un token JWT.
+Ajouter une durée de 15 minutes de validité à votre token JWT "expires: DateTime.UtcNow.AddMinutes(15)"
+Tips : regarder comment c'est fait dans le complément de cours.
+
+Tester via swagger
+
+`Ajout dans fichier appsettings.json de jwt:key
+et faire la suite comme dans le complément de cours....
+`
+
+6. Dans le projet Blazor, Dans le menu ajouter "connexion" et ajouter la page Login.razor, où on saisi l'utilisateur, clique sur connecter et générer le token .
+Si l'utilisateur n'existe pas précisez (il n'existe pas)
+Générer le token et ensuite le sauvegarder en session blazor.
+
+Vous pouvez voir comment les pages et l'ajout en session est fait dans le projet demo de ce cours-tp.
+
+Installer les package suivant : 
+`
+dotnet add package Blazored.SessionStorage --version 2.4.0
+dotnet add package Microsoft.AspNetCore.Components.Authorization
+dotnet add package Microsoft.Extensions.Http
+dotnet add package System.IdentityModel.Tokens.Jwt
+`
+
+Pour simplifier le TP, aucun mot de passe n'est utilisé.
+Mais dans les faits les comptes sont géré ailleurs (comme keycloak par exemple) et non défini par l'utilisateur. On le verra semaine prochaine.
+
+Ne pas oublier de configurer les CORS.
+`
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowBlazorClient", policy =>
+    {
+        policy.WithOrigins("http://localhost:mon-port") // URL de ton client Blazor
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+//Activer CORS
+app.UseCors("AllowBlazorClient");
+
+`
+
+7. Une fois connecté, enregistrer le token en session blazorstorage et rediriger vers la page de'accueil.
+
+8. Ajouter dans le menu un bouton déconnexion, et à la déconnexion supprimer le token en session. et rediriger vers la page d'accueil.
+
+
+## Partie 3 - Sécurisation des APIs existantes (3 pts)
+
+9. Configurer l'authentification swagger sur le projet  GestionOrdinateurs.API
+`
+
+Installer ces packages.....
+dotnet add package Microsoft.AspNetCore.Authentication.JwtBearer
+dotnet add package Microsoft.AspNetCore.Identity.EntityFrameworkCore
+dotnet add package Microsoft.AspNetCore.OpenApi
+dotnet add package Swashbuckle.AspNetCore
+
+Dans program.cs 
+
+// ajouter swagger JWT
+builder.Services.AddSwaggerGen(c =>
+{
+    c.SwaggerDoc("v1", new OpenApiInfo
+    {
+        Title = "GestionOrdinateurs",
+        Version = "v1"
+    });
+
+    c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "Bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Entrez : Bearer {token}"
+    });
+});
+
+// Configuration JWT
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "";
+var key = Encoding.ASCII.GetBytes(jwtKey);
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+}).AddJwtBearer(options =>
+{
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuerSigningKey = true,
+        IssuerSigningKey = new SymmetricSecurityKey(key),
+        ValidateIssuer = false,
+        ValidateAudience = false
+    };
+    options.Events = new JwtBearerEvents
+        {
+            OnTokenValidated = context =>
+            {
+                Console.WriteLine($"Utilisateur utilisant un Token Valide --- {context.Principal?.Identity?.Name ?? "Anonymous"}");
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                Console.WriteLine("Token Invalide");
+                return Task.CompletedTask;
+            }
+        };
+});
+
+Dans appsettings.json
+"Jwt": {
+    "Key": "ma_longue_cle_de_test..................."
+  }
+`
+
+10. Protéger les endpoints OrdinateursController et ReparationController [Authorize]  .. [Authorize(Roles = "Admin")]
+
+
+
+## Partie 4 - Diverses Listes dans le front (3 pts)
+
+11. Ajouter dans ordinateur un attribut booleen "Vendu" par défaut à false. Mettre à jour la base de données.
+
+12. Ajouter les pages .razor qui affichent les listes des ordinateurs, des réparations (Historique des réparations créé dans le TP Précédent)
+Listes ordinateurs
+Nom	| Prix | Devise | Vendu
+
+
+
+## Partie 5 - Configuration de la Gateway (3 pts)
+
+13. Dans la gateway ajouter le package yarp
+`
+dotnet add package Yarp.ReverseProxy
+`
+
+14. Configurer la redirection dans le fichier appsettings. 
+Ne configurer que les chemin d'accès vers les endpoints de ordinateurcontroller et ceux de reparationcontroleur
+
+15. Le lancer sur le Port 5010.
+
+16. Modifier les frontS des listes pour utiliser maintenant les URLs en passant par la Gateway
+Tester les appels uniquement via la Gateway.
+Les URLs directes des APIs ne doivent plus être utilisées dans le client.
+
+Ne pas oublier de configurer les cors au niveau des API avec les bons ports.
+
+
+
+## Partie 6 - Protection des pages Blazor (2 pts)
+
+17. Créer le "JwtAuthenticationStateProvider" et configurer comme dans le projet complément de cours.
+Configurer un handler JWT "JwtHandler" pour passer le token à tous les appels d'API depuis le front.
+Ne pas oublier de modifier aussi de "App.razor"
+
+18. Protéger les pages de votre front pour etre accessible seulement aux utilisateurs connectés.
+
+19. Vérifiez le bon fonctionnement de vos IHMs.

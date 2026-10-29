@@ -1,0 +1,5 @@
+@inject NavigationManager Navigation
+<p>Connexion nécessaire pour accéder à cette page.</p>
+@code {
+    protected override void OnInitialized() => Navigation.NavigateTo("login");
+}

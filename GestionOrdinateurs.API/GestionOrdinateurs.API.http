@@ -1,0 +1,80 @@
+@adresse = http://localhost:5256
+@id = 1
+
+### Liste : récupérer un Id avant les requêtes suivantes
+GET {{adresse}}/api/ordinateurs
+
+### Informations
+GET {{adresse}}/api/ordinateurs/info
+
+### Ajouter
+POST {{adresse}}/api/ordinateurs
+Content-Type: application/json
+
+{
+  "nom": "Poste atelier",
+  "etat": "Lent",
+  "stock": 2,
+  "prix": 749.90,
+  "caracteristiques": {
+    "ramGo": 4,
+    "stockageGo": 512,
+    "typeOrdi": "Portable",
+    "marque": "Dell",
+    "processeur": "Intel Core i5"
+  }
+}
+
+### Modifier
+PUT {{adresse}}/api/ordinateurs/{{id}}
+Content-Type: application/json
+
+{
+  "nom": "Poste atelier",
+  "etat": "EnService",
+  "stock": 2,
+  "prix": 799.90,
+  "caracteristiques": {
+    "ramGo": 16,
+    "stockageGo": 512,
+    "typeOrdi": "Portable",
+    "marque": "Dell",
+    "processeur": "Intel Core i5"
+  }
+}
+
+### Disponibles
+GET {{adresse}}/api/ordinateurs/disponibles
+
+### Marque
+GET {{adresse}}/api/ordinateurs/marque/Dell
+
+### Prix décroissants
+GET {{adresse}}/api/ordinateurs/prix
+
+### Diagnostic
+GET {{adresse}}/api/ordinateurs/{{id}}/diagnostic
+
+### Statistiques
+GET {{adresse}}/api/ordinateurs/statistiques
+
+### Indexeur nom
+GET {{adresse}}/api/ordinateurs/inventaire/Dell%20XPS
+
+### Indexeur Id
+GET {{adresse}}/api/ordinateurs/inventaire/id/{{id}}
+
+### Simuler cinq réparations
+POST {{adresse}}/api/reparations/SimulerReparation?technicien=Camille
+
+### Réparations avec leurs ordinateurs
+GET {{adresse}}/api/reparations
+
+### Historique
+GET {{adresse}}/api/reparations/historique
+
+### Stock SSD
+GET {{adresse}}/api/reparations/GetStockSSD
+
+### Supprimer (supprime aussi les réparations associées)
+DELETE {{adresse}}/api/ordinateurs/{{id}}

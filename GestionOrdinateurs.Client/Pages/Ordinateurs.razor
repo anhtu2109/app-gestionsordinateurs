@@ -1,0 +1,60 @@
+@page "/ordinateurs"
+@attribute [Authorize(Roles = "Admin,Gestionnaire")]
+@inject HttpClient Http
+
+<h1>Ordinateurs</h1>
+<label for="devise">Devise d'affichage</label>
+<select id="devise" class="form-select mb-3" value="@devise" @onchange="ChangerDevise" disabled="@conversion">
+    <option>EUR</option><option>USD</option><option>GBP</option>
+</select>
+@if (message is not null) { <p class="text-danger" role="alert">@message</p> }
+@if (ordinateurs is null) { <p>Chargement...</p> }
+else if (ordinateurs.Count == 0) { <p>Aucun ordinateur.</p> }
+else
+{
+    <table class="table table-striped">
+        <thead><tr><th>Nom</th><th>Prix</th><th>Devise</th><th>Vendu</th></tr></thead>
+        <tbody>
+            @foreach (var ordinateur in ordinateurs)
+            {
+                <tr><td>@ordinateur.Nom</td><td>@((ordinateur.Prix * taux).ToString("F2"))</td><td>@devise</td><td>@(ordinateur.Vendu ? "Oui" : "Non")</td></tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    // DTO de lecture : les setters privés du modèle métier ne sont pas destinés au client.
+    private record OrdinateurLigne(string Nom, decimal Prix, bool Vendu);
+    private record TauxDevise(string Devise, decimal Taux);
+    private List<OrdinateurLigne>? ordinateurs;
+    private string devise = "EUR";
+    private decimal taux = 1m;
+    private string? message;
+    private bool conversion;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try { ordinateurs = await Http.GetFromJsonAsync<List<OrdinateurLigne>>("api/ordinateurs"); }
+        catch (HttpRequestException) { message = "Impossible de charger les ordinateurs."; ordinateurs = []; }
+    }
+
+    private async Task ChangerDevise(ChangeEventArgs args)
+    {
+        conversion = true;
+        message = null;
+        try
+        {
+            var resultat = await Http.GetFromJsonAsync<TauxDevise>("api/ordinateurs/devises/" + args.Value);
+            devise = resultat!.Devise;
+            taux = resultat.Taux;
+        }
+        catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
+        {
+            devise = "EUR";
+            taux = 1m;
+            message = "Conversion indisponible. Affichage des prix en EUR.";
+        }
+        finally { conversion = false; }
+    }
+}

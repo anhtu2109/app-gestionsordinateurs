@@ -1,0 +1,13 @@
+@page "/"
+<PageTitle>Atelier informatique</PageTitle>
+<h1>Gestion du parc informatique</h1>
+<p>NGUYEN Anh Tu — TP5</p>
+<AuthorizeView>
+    <Authorized>
+        <p>Bonjour @context.User.Identity?.Name. Consultez les ordinateurs et l'historique des réparations depuis le menu.</p>
+    </Authorized>
+    <NotAuthorized>
+        <p>Connectez-vous pour consulter le parc de l'atelier.</p>
+        <a class="btn btn-primary" href="login">Connexion</a>
+    </NotAuthorized>
+</AuthorizeView>

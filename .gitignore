@@ -55,3 +55,14 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+# Local development files
+**/bin/
+**/obj/
+.vs/
+.DS_Store
+.idea/
+node_modules/
+__pycache__/
+.env.*
+!.env.example

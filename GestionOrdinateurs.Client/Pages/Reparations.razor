@@ -1,0 +1,51 @@
+@page "/reparations"
+@attribute [Authorize(Roles = "Admin,Gestionnaire")]
+@inject HttpClient Http
+
+<h1>Historique des réparations</h1>
+<AuthorizeView Roles="Admin">
+    <button class="btn btn-primary mb-3" disabled="@simulation" @onclick="Simuler">Simuler cinq réparations</button>
+</AuthorizeView>
+@if (message is not null) { <p role="alert">@message</p> }
+@if (historique is null) { <p>Chargement...</p> }
+else if (historique.Count == 0) { <p>Aucune réparation terminée.</p> }
+else
+{
+    <table class="table table-striped">
+        <thead><tr><th>Ordinateur</th><th>Technicien</th><th>Intervention</th><th>Date (UTC)</th></tr></thead>
+        <tbody>
+            @foreach (var r in historique)
+            {
+                <tr><td>@r.NomOrdinateur</td><td>@r.Technicien</td><td>@r.TypeReparation</td><td>@r.DateIntervention.ToString("dd/MM/yyyy HH:mm")</td></tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private record ReparationLigne(string NomOrdinateur, string Technicien, string TypeReparation, DateTime DateIntervention);
+    private List<ReparationLigne>? historique;
+    private string? message;
+    private bool simulation;
+
+    protected override async Task OnInitializedAsync() => await Charger();
+
+    private async Task Charger()
+    {
+        try { historique = await Http.GetFromJsonAsync<List<ReparationLigne>>("api/reparations/historique"); }
+        catch (HttpRequestException) { message = "Impossible de charger l'historique."; historique = []; }
+    }
+
+    private async Task Simuler()
+    {
+        simulation = true;
+        try
+        {
+            using var response = await Http.PostAsync("api/reparations/SimulerReparation", null);
+            message = response.IsSuccessStatusCode ? "Réparations terminées." : "Simulation refusée. Il faut être Admin et avoir au moins cinq ordinateurs.";
+            if (response.IsSuccessStatusCode) await Charger();
+        }
+        catch (HttpRequestException) { message = "Le service de réparation est indisponible."; }
+        finally { simulation = false; }
+    }
+}
