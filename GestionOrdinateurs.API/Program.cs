@@ -32,17 +32,24 @@ builder.Services.AddSwaggerGen(c =>
 });
 builder.Services.AddAuthentication("Bearer").AddJwtBearer(options =>
 {
+    // TP6 : seuls les jetons signes par Keycloak sont acceptes.
+    var authority = builder.Configuration["Keycloak:Authority"]!;
+    options.Authority = authority;
+    options.MetadataAddress = builder.Configuration["Keycloak:MetadataAddress"]
+        ?? authority + "/.well-known/openid-configuration";
+    options.RequireHttpsMetadata = builder.Configuration.GetValue("Keycloak:RequireHttpsMetadata", true);
+    options.MapInboundClaims = false;
     options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
     {
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-            System.Text.Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]!)),
         ValidateIssuer = true,
-        ValidIssuer = "AuthentificationApi",
+        ValidIssuer = authority,
         ValidateAudience = true,
-        ValidAudience = "GestionOrdinateurs",
+        ValidAudience = builder.Configuration["Keycloak:Audience"],
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero
+        ClockSkew = TimeSpan.FromSeconds(30),
+        NameClaimType = "preferred_username",
+        RoleClaimType = "roles"
     };
 });
 builder.Services.AddAuthorization();
@@ -75,7 +82,8 @@ builder.Services.AddSingleton<IOrdinateurService>(services =>
 
 var app = builder.Build();
 
-// Partie 1 : Migrate conserve les données du TP4 et ajoute Users et Vendu.
+// Les anciens utilisateurs restent des donnees du TP5 ; les identites et roles
+// d'authentification sont maintenant geres exclusivement par Keycloak.
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ParcInformatiqueContext>();

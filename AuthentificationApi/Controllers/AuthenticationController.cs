@@ -13,8 +13,23 @@ namespace AuthentificationApi.Controllers;
 [Route("api/authentication")]
 public class AuthenticationController(IHttpClientFactory factory, IConfiguration configuration) : ControllerBase
 {
+    // L'ancien endpoint sans mot de passe ne doit pas contourner Keycloak.
     [HttpPost]
-    public async Task<IActionResult> Connexion(LoginRequest demande)
+    public IActionResult Connexion() => StatusCode(StatusCodes.Status410Gone, new
+    {
+        message = "La connexion du TP5 est desactivee. Utilisez la connexion Keycloak du client."
+    });
+
+    [HttpGet("configuration")]
+    public IActionResult ConfigurationKeycloak() => Ok(new
+    {
+        authority = configuration["Keycloak:Authority"],
+        clientId = configuration["Keycloak:ClientId"]
+    });
+
+    // Code du TP5 conserve pour comparaison, mais jamais expose comme action HTTP.
+    [NonAction]
+    public async Task<IActionResult> ConnexionHistorique(LoginRequest demande)
     {
         if (string.IsNullOrWhiteSpace(demande.Login) || !Enum.IsDefined(demande.Role))
             return BadRequest(new { message = "Login ou rôle invalide." });

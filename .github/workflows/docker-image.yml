@@ -57,4 +57,5 @@ jobs:
       - name: Build images
         run: docker compose build
       - name: Push images
-        run: docker compose push
+        # PostgreSQL et Keycloak proviennent de registres publics.
+        run: docker compose push gestionordinateurs-api authentification-api gateway client

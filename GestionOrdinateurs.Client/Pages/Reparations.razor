@@ -33,6 +33,7 @@ else
     private async Task Charger()
     {
         try { historique = await Http.GetFromJsonAsync<List<ReparationLigne>>("api/reparations/historique"); }
+        catch (AccessTokenNotAvailableException exception) { exception.Redirect(); }
         catch (HttpRequestException) { message = "Impossible de charger l'historique."; historique = []; }
     }
 
@@ -45,6 +46,7 @@ else
             message = response.IsSuccessStatusCode ? "Réparations terminées." : "Simulation refusée. Il faut être Admin et avoir au moins cinq ordinateurs.";
             if (response.IsSuccessStatusCode) await Charger();
         }
+        catch (AccessTokenNotAvailableException exception) { exception.Redirect(); }
         catch (HttpRequestException) { message = "Le service de réparation est indisponible."; }
         finally { simulation = false; }
     }

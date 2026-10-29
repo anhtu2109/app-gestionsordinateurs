@@ -13,8 +13,8 @@ public class UsersController(ParcInformatiqueContext db) : ControllerBase
     [Authorize(Roles = "Admin")]
     public async Task<IActionResult> Tous() => Ok(await db.Users.AsNoTracking().ToListAsync());
 
-    // Partie 2 : recherche publique nécessaire avant la connexion sans mot de passe du TP.
-    [AllowAnonymous]
+    // TP6 : le client ne recherche plus publiquement un role avant connexion.
+    [Authorize(Roles = "Admin")]
     [HttpGet("{login}")]
     public async Task<IActionResult> ParLogin(string login)
     {

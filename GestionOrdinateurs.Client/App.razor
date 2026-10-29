@@ -4,7 +4,14 @@
             @* Partie 6 : AuthorizeRouteView applique les attributs Authorize des pages. *@
             <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)">
                 <NotAuthorized>
-                    <RedirectToLogin />
+                    @if (context.User.Identity?.IsAuthenticated == true)
+                    {
+                        <p role="alert">Vous n'avez pas les droits nécessaires pour accéder à cette page.</p>
+                    }
+                    else
+                    {
+                        <RedirectToLogin />
+                    }
                 </NotAuthorized>
                 <Authorizing><p>Vérification de la session...</p></Authorizing>
             </AuthorizeRouteView>

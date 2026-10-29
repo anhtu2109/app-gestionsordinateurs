@@ -36,6 +36,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         try { ordinateurs = await Http.GetFromJsonAsync<List<OrdinateurLigne>>("api/ordinateurs"); }
+        catch (AccessTokenNotAvailableException exception) { exception.Redirect(); }
         catch (HttpRequestException) { message = "Impossible de charger les ordinateurs."; ordinateurs = []; }
     }
 
@@ -49,6 +50,7 @@ else
             devise = resultat!.Devise;
             taux = resultat.Taux;
         }
+        catch (AccessTokenNotAvailableException exception) { exception.Redirect(); }
         catch (Exception e) when (e is HttpRequestException or TaskCanceledException)
         {
             devise = "EUR";

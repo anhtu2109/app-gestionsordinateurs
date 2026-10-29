@@ -1,0 +1,132 @@
+{
+  "realm": "gestionordinateurs",
+  "enabled": true,
+  "displayName": "Atelier informatique",
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": false,
+  "resetPasswordAllowed": false,
+  "accessTokenLifespan": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "roles": {
+    "realm": [
+      {
+        "name": "Admin"
+      },
+      {
+        "name": "Gestionnaire"
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "gestionordinateurs-client",
+      "name": "Gestion des ordinateurs",
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:5000/authentication/login-callback",
+        "http://localhost:5020/authentication/login-callback"
+      ],
+      "webOrigins": [
+        "http://localhost:5000",
+        "http://localhost:5020"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5000/authentication/logout-callback##http://localhost:5020/authentication/logout-callback"
+      },
+      "defaultClientScopes": [
+        "profile",
+        "email",
+        "roles",
+        "web-origins"
+      ],
+      "protocolMappers": [
+        {
+          "name": "roles-application",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-realm-role-mapper",
+          "config": {
+            "multivalued": "true",
+            "claim.name": "roles",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "audience-api",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "gestionordinateurs-api",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "user1",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "user1",
+      "lastName": "TP6",
+      "email": "user1@example.test",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Tp6demo!2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "Admin"
+      ]
+    },
+    {
+      "username": "user2",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "user2",
+      "lastName": "TP6",
+      "email": "user2@example.test",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Tp6demo!2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "Gestionnaire"
+      ]
+    },
+    {
+      "username": "user3",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "user3",
+      "lastName": "TP6",
+      "email": "user3@example.test",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "Tp6demo!2026",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "Gestionnaire"
+      ]
+    }
+  ]
+}
