@@ -1,0 +1,12 @@
+**/bin
+**/obj
+**/node_modules
+.git
+.idea
+.vs
+**/.DS_Store
+.env
+.env.*
+**/Logs
+verification
+*.zip

@@ -17,4 +17,11 @@
     <PackageReference Include="Swashbuckle.AspNetCore" Version="9.0.3" />
     <ProjectReference Include="../GestionOrdinateurs.Shared/GestionOrdinateurs.Shared.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Conserver les exemples du TP5 lors de la publication Docker. -->
+    <Content Include="parcinfo.db">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
 </Project>

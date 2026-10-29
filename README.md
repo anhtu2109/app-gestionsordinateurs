@@ -1,4 +1,53 @@
-# GestionOrdinateurs — TP5
+# GestionOrdinateurs — TP6
+
+## Docker et GitHub Actions
+
+La premiere partie du TP6 ajoute quatre images et Docker Compose. L'authentification
+JWT du TP5 est conservee a cette etape ; Keycloak/OIDC sera configure dans la partie 2.
+
+Demarrer Docker Desktop, puis executer depuis la racine de cette solution :
+
+```bash
+docker compose build
+docker compose up -d
+```
+
+Ouvrir http://localhost:5000. La Gateway ecoute sur 5010, l'API metier sur 5256
+et l'API d'authentification sur 5011. Comptes : user1 (Admin), user2/user3 (Gestionnaire),
+sans mot de passe comme dans le TP5. Attendre le demarrage des API avant la connexion.
+
+Les API communiquent via les noms des services Docker. Le navigateur continue
+d'appeler http://localhost:5010. Le front Nginx accepte les routes Blazor directes.
+Le volume ordinateurs_data conserve la base SQLite lors de la recreation des conteneurs ;
+un volume neuf est initialise avec parcinfo.db du TP5. `docker compose down` conserve
+ce volume, tandis que `docker compose down -v` supprime ses donnees.
+
+Sans fichier .env, les images locales portent le prefixe tp6local. Pour utiliser son
+compte Docker Hub, copier .env.example vers .env et remplacer mon_compte_docker.
+La CI utilise directement les secrets GitHub et n'a pas besoin du fichier .env.
+
+```bash
+docker compose ps
+docker compose logs --tail=50
+python3 verification/verifier_api.py
+```
+
+Le workflow `.github/workflows/docker-image.yml` execute restore, build et tests .NET 10.
+Apres un push sur main ou un lancement manuel depuis main, il construit les quatre images
+avec Compose, puis les publie sur Docker Hub. Les pull requests executent seulement les tests.
+Creer les secrets de repository DOCKER_ACCOUNT, DOCKER_USERNAME et DOCKER_PASSWORD
+(token Docker Hub autorisant l'ecriture). Le job Docker utilise l'environnement dev.
+
+Images publiees sous DOCKER_ACCOUNT : authentificationapi, gestionordinateurs-api,
+gestionordinateurs-gateway et gestionordinateurs-client, toutes avec le tag latest.
+GitHub ubuntu-latest produit des images Linux amd64 ; le build local sur Apple Silicon
+produit des images Linux arm64. Utiliser `docker compose build` sur le Mac pour une
+execution native.
+
+Le parcours Playwright utilise http://localhost:5000 par defaut. Pour un lancement
+hors Docker sur le port historique : `FRONTEND_URL=http://localhost:5020 node verification/verifier_ihm.cjs`.
+
+## Fonctionnement herite du TP5
 
 NGUYEN Anh Tu
 
@@ -110,7 +159,7 @@ Pour reproduire le parcours graphique avec Node.js :
 ```bash
 npm install --no-save --package-lock=false playwright
 npx playwright install chromium
-node verification/verifier_ihm.cjs
+FRONTEND_URL=http://localhost:5020 node verification/verifier_ihm.cjs
 ```
 
 Le script peut aussi utiliser un Chrome déjà installé via la variable BROWSER_PATH.

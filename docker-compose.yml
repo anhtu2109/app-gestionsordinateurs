@@ -1,0 +1,64 @@
+name: gestionordinateurs
+
+services:
+  gestionordinateurs-api:
+    image: ${DOCKER_ACCOUNT:-tp6local}/gestionordinateurs-api:latest
+    build:
+      context: .
+      dockerfile: GestionOrdinateurs.API/Dockerfile
+    environment:
+      ConnectionStrings__ParcInformatique: Data Source=/app/data/parcinfo.db
+    ports:
+      - "5256:5256"
+    volumes:
+      - ordinateurs_data:/app/data
+    networks:
+      - appnet
+
+  authentification-api:
+    image: ${DOCKER_ACCOUNT:-tp6local}/authentificationapi:latest
+    build:
+      context: .
+      dockerfile: AuthentificationApi/Dockerfile
+    environment:
+      ApiUrl: http://gestionordinateurs-api:5256/
+    ports:
+      - "5011:5011"
+    depends_on:
+      - gestionordinateurs-api
+    networks:
+      - appnet
+
+  gateway:
+    image: ${DOCKER_ACCOUNT:-tp6local}/gestionordinateurs-gateway:latest
+    build:
+      context: .
+      dockerfile: GestionOrdinateurs.Gateway/Dockerfile
+    environment:
+      ReverseProxy__Clusters__metier__Destinations__api__Address: http://gestionordinateurs-api:5256/
+      ReverseProxy__Clusters__auth__Destinations__api__Address: http://authentification-api:5011/
+    ports:
+      - "5010:5010"
+    depends_on:
+      - gestionordinateurs-api
+      - authentification-api
+    networks:
+      - appnet
+
+  client:
+    image: ${DOCKER_ACCOUNT:-tp6local}/gestionordinateurs-client:latest
+    build:
+      context: .
+      dockerfile: GestionOrdinateurs.Client/Dockerfile
+    ports:
+      - "5000:5000"
+    depends_on:
+      - gateway
+    networks:
+      - appnet
+
+volumes:
+  ordinateurs_data:
+
+networks:
+  appnet:

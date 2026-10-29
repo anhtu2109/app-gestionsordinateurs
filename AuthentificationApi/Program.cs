@@ -10,7 +10,7 @@ builder.Services.AddHttpClient("Utilisateurs", c =>
     c.Timeout = TimeSpan.FromSeconds(8);
 });
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
-    p.WithOrigins("http://localhost:5020").AllowAnyHeader().AllowAnyMethod()));
+    p.WithOrigins("http://localhost:5000", "http://localhost:5020").AllowAnyHeader().AllowAnyMethod()));
 var app = builder.Build();
 app.UseCors();
 app.UseSwagger();

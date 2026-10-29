@@ -1,0 +1,60 @@
+name: CI/CD Docker TP6
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: '10.0.x'
+      - name: Restore
+        run: dotnet restore GestionOrdinateurs.slnx
+      - name: Build
+        run: dotnet build GestionOrdinateurs.slnx -c Release --no-restore
+      - name: Tests
+        run: dotnet test GestionOrdinateurs.slnx -c Release --no-build --verbosity normal
+
+  docker:
+    needs: tests
+    # Les pull requests executent les tests sans publier d'images.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: dev
+    env:
+      DOCKER_ACCOUNT: ${{ secrets.DOCKER_ACCOUNT }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Verifier les secrets Docker Hub
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          for variable in DOCKER_ACCOUNT DOCKER_USERNAME DOCKER_PASSWORD; do
+            if [ -z "${!variable}" ]; then
+              echo "::error::Secret manquant : $variable"
+              exit 1
+            fi
+          done
+      - name: Login Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      - name: Build images
+        run: docker compose build
+      - name: Push images
+        run: docker compose push

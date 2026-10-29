@@ -47,7 +47,7 @@ builder.Services.AddAuthentication("Bearer").AddJwtBearer(options =>
 });
 builder.Services.AddAuthorization();
 builder.Services.AddCors(o => o.AddDefaultPolicy(p =>
-    p.WithOrigins("http://localhost:5020").AllowAnyHeader().AllowAnyMethod()));
+    p.WithOrigins("http://localhost:5000", "http://localhost:5020").AllowAnyHeader().AllowAnyMethod()));
 builder.Services.AddHttpClient("Devises", c =>
 {
     c.BaseAddress = new Uri("https://api.frankfurter.dev/");
@@ -56,7 +56,8 @@ builder.Services.AddHttpClient("Devises", c =>
 
 // Le chemin absolu évite de créer une seconde base selon le dossier du terminal.
 builder.Services.AddDbContextFactory<ParcInformatiqueContext>(options =>
-    options.UseSqlite("Data Source=" + Path.Combine(builder.Environment.ContentRootPath, "parcinfo.db")));
+    options.UseSqlite(builder.Configuration.GetConnectionString("ParcInformatique")
+        ?? "Data Source=" + Path.Combine(builder.Environment.ContentRootPath, "parcinfo.db")));
 builder.Services.AddSingleton(new JournalService(Path.Combine(builder.Environment.ContentRootPath, "Logs")));
 builder.Services.AddSingleton<JournalOrdinateurs>();
 builder.Services.AddSingleton<ReparationService>();
